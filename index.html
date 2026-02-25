@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black">
+    <meta name="theme-color" content="#4CAF50">
+    <title>沖ドキ！GOLD 設定判別ツール</title>
+    <link rel="manifest" href="manifest.json">
+    <link rel="icon" href="icon.png"> <!-- アイコン画像を準備: 512x512 PNG -->
+    <style>
+        body { font-family: sans-serif; max-width: 400px; margin: 0 auto; padding: 10px; background: #f0f0f0; touch-action: manipulation; }
+        h1 { text-align: center; font-size: 1.5em; margin-bottom: 10px; }
+        label { display: block; font-size: 1.1em; margin-top: 10px; }
+        input[type="number"] { width: 100%; padding: 12px; font-size: 1.2em; box-sizing: border-box; text-align: center; }
+        .counter { display: flex; justify-content: space-between; margin-top: 5px; }
+        .counter button { width: 48%; padding: 15px; font-size: 1.5em; background: #ddd; border: none; border-radius: 5px; cursor: pointer; }
+        .counter button:active { background: #ccc; }
+        button.main { width: 100%; margin: 10px 0; padding: 15px; font-size: 1.2em; background: #4CAF50; color: white; border: none; border-radius: 5px; cursor: pointer; }
+        button.main:active { background: #45a049; }
+        #result { margin-top: 20px; padding: 15px; background: white; border: 1px solid #ddd; border-radius: 5px; font-size: 1em; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: center; font-size: 0.9em; }
+        th { background: #eee; }
+        .high { color: green; font-weight: bold; }
+        #taiList { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 15px; }
+        .taiBtn { padding: 10px 15px; background: #ddd; border-radius: 5px; cursor: pointer; font-size: 1.1em; }
+        .active { background: #4CAF50; color: white; }
+        #bonusHistory { width: 100%; height: 60px; padding: 10px; font-size: 1em; box-sizing: border-box; }
+        #modeResult { margin-top: 20px; padding: 15px; background: #e6f7ff; border: 1px solid #91d5ff; border-radius: 5px; }
+    </style>
+</head>
+<body>
+    <h1>沖ドキ！GOLD 設定判別ツール</h1>
+    
+    <label>台番号:</label>
+    <input type="text" id="taiNo" placeholder="例: A12 or 5番" value="">
+    
+    <div id="taiList"></div>
+    
+    <label>総G数:</label>
+    <input type="number" id="games" min="0" value="0">
+    <div class="counter">
+        <button onclick="increment('games', -1)">-1</button>
+        <button onclick="increment('games', 1)">+1</button>
+    </div>
+    
+    <label>BB回数:</label>
+    <input type="number" id="bb" min="0" value="0">
+    <div class="counter">
+        <button onclick="increment('bb', -1)">-1</button>
+        <button onclick="increment('bb', 1)">+1</button>
+    </div>
+    
+    <label>REG回数:</label>
+    <input type="number" id="reg" min="0" value="0">
+    <div class="counter">
+        <button onclick="increment('reg', -1)">-1</button>
+        <button onclick="increment('reg', 1)">+1</button>
+    </div>
+    
+    <label>チェリーB回数 (左リール上段チェリー停止時のボーナス当選):</label>
+    <input type="number" id="cherry_b" min="0" value="0">
+    <div class="counter">
+        <button onclick="increment('cherry_b', -1)">-1</button>
+        <button onclick="increment('cherry_b', 1)">+1</button>
+    </div>
+    
+    <label>確定役B回数 (スイカ揃い小V型):</label>
+    <input type="number" id="kakutei_b" min="0" value="0">
+    <div class="counter">
+        <button onclick="increment('kakutei_b', -1)">-1</button>
+        <button onclick="increment('kakutei_b', 1)">+1</button>
+    </div>
+    
+    <label>ボーナス履歴 (当たりG数をカンマ区切りで: 例: 150,32,32,200):</label>
+    <textarea id="bonusHistory" placeholder="当たりG数を入力 (カンマ区切り)"></textarea>
+    
+    <button class="main" onclick="saveAndJudge()">保存 & 判別</button>
+    <button class="main" onclick="clearData()">この台クリア</button>
+    <button class="main" onclick="deleteAll()">全データ削除</button>
+    
+    <div id="result"></div>
+    <div id="modeResult"></div>
+    
+    <table>
+        <tr><th>要素</th><th>設1</th><th>設2</th><th>設3</th><th>設5</th><th>設6</th></tr>
+        <tr><td>初当たり</td><td>1/299.6</td><td>1/287.3</td><td>1/266.7</td><td>1/247.6</td><td>1/237.0</td></tr>
+        <tr><td>BB</td><td>1/175.3</td><td>1/168.3</td><td>1/157.7</td><td>1/143.0</td><td>1/134.0</td></tr>
+        <tr><td>REG</td><td>1/368.7</td><td>1/346.2</td><td>1/324.0</td><td>1/297.9</td><td>1/276.5</td></tr>
+        <tr><td>チェB</td><td>1/168.0</td><td>1/39.1</td><td>1/38.6</td><td>1/37.9</td><td>1/37.2</td></tr>
+        <tr><td>確B</td><td>1/16384</td><td>1/5041</td><td>1/4681</td><td>1/4096</td><td>1/3641</td></tr>
+        <tr><td>機械割</td><td>97.2%</td><td>98.7%</td><td>101.3%</td><td>104.7%</td><td>108.1%</td></tr>
+    </table>
+    
+    <script>
+        const PROBS = {
+            'bonus': {1: 299.6, 2: 287.3, 3: 266.7, 5: 247.6, 6: 237.0},
+            'bb': {1: 175.3, 2: 168.3, 3: 157.7, 5: 143.0, 6: 134.0},
+            'reg': {1: 368.7, 2: 346.2, 3: 324.0, 5: 297.9, 6: 276.5},
+            'cherry_b': {1: 168.0, 2: 39.1, 3: 38.6, 5: 37.9, 6: 37.2},
+            'kakutei_b': {1: 16384.0, 2: 5041.2, 3: 4681.1, 5: 4096.0, 6: 3640.9}
+        };
+        const SETTINGS = [1, 2, 3, 5, 6];
+        
+        // モード移行率の推定値 (解析から抽出、簡易版)
+        const MODE_TRANS = {
+            reset: { A: 0.508, B: 0.094, Chance: 0.398 }, // リセット時
+            fromA: { Heaven: 0.15, B: 0.08 }, // 通常Aから天国15%, B 8% (推定)
+            fromB: { Heaven: 0.5 }, // 通常Bから天国50%以上
+            fromChance: { B: 0.5, Heaven: 0.5 }, // チャンスからB or 天国
+            loopHeaven: 0.5, // 天国ループ推定 (奇偶差ありだが平均)
+            loopDoki: 0.8,
+            loopSuperDoki: 0.9
+        };
+        
+        let currentTai = '';
+        
+        function loadData(taiNo) {
+            const allData = JSON.parse(localStorage.getItem('okidoki_data')) || {};
+            const data = allData[taiNo] || {games: 0, bb: 0, reg: 0, cherry_b: 0, kakutei_b: 0, bonus: 0, history: ''};
+            return data;
+        }
+        
+        function saveData(taiNo, data) {
+            const allData = JSON.parse(localStorage.getItem('okidoki_data')) || {};
+            allData[taiNo] = data;
+            localStorage.setItem('okidoki_data', JSON.stringify(allData));
+            updateTaiList();
+        }
+        
+        function updateTaiList() {
+            const allData = JSON.parse(localStorage.getItem('okidoki_data')) || {};
+            const list = document.getElementById('taiList');
+            list.innerHTML = '';
+            Object.keys(allData).sort().forEach(tai => {
+                const btn = document.createElement('div');
+                btn.className = 'taiBtn' + (tai === currentTai ? ' active' : '');
+                btn.textContent = tai;
+                btn.onclick = () => switchTai(tai);
+                list.appendChild(btn);
+            });
+        }
+        
+        function switchTai(taiNo) {
+            currentTai = taiNo;
+            document.getElementById('taiNo').value = taiNo;
+            const data = loadData(taiNo);
+            document.getElementById('games').value = data.games;
+            document.getElementById('bb').value = data.bb;
+            document.getElementById('reg').value = data.reg;
+            document.getElementById('cherry_b').value = data.cherry_b;
+            document.getElementById('kakutei_b').value = data.kakutei_b;
+            document.getElementById('bonusHistory').value = data.history || '';
+            updateTaiList();
+            judgeSetting(data);
+            judgeMode(data);
+        }
+        
+        function increment(field, delta) {
+            const elem = document.getElementById(field);
+            let val = parseInt(elem.value) || 0;
+            val = Math.max(0, val + delta);
+            elem.value = val;
+        }
+        
+        function saveAndJudge() {
+            const taiNo = document.getElementById('taiNo').value.trim();
+            if (!taiNo) {
+                alert('台番号を入力してね');
+                return;
+            }
+            currentTai = taiNo;
+            const data = {
+                games: parseInt(document.getElementById('games').value) || 0,
+                bb: parseInt(document.getElementById('bb').value) || 0,
+                reg: parseInt(document.getElementById('reg').value) || 0,
+                cherry_b: parseInt(document.getElementById('cherry_b').value) || 0,
+                kakutei_b: parseInt(document.getElementById('kakutei_b').value) || 0,
+                history: document.getElementById('bonusHistory').value.trim()
+            };
+            data.bonus = data.bb + data.reg;
+            saveData(taiNo, data);
+            judgeSetting(data);
+            judgeMode(data);
+        }
+        
+        function chi2_score(games, obs, exp) {
+            if (games === 0) return 0;
+            const exp_count = games / exp;
+            if (exp_count === 0) return obs === 0 ? 0 : Infinity;
+            return Math.pow(obs - exp_count, 2) / exp_count;
+        }
+        
+        function judgeSetting(data) {
+            const games = data.games;
+            const resultDiv = document.getElementById('result');
+            if (games < 100) {
+                resultDiv.innerHTML = 'データ不足（100G以上推奨）';
+                return;
+            }
+            let scores = {};
+            SETTINGS.forEach(s => scores[s] = 0);
+            Object.keys(PROBS).forEach(key => {
+                const obs = data[key] || 0;
+                SETTINGS.forEach(s => {
+                    const exp = PROBS[key][s];
+                    scores[s] += chi2_score(games, obs, exp);
+                });
+            });
+            
+            // 設定期待度パーセント (簡易ベイズ: 事前均等, 尤度 = exp(-chi2/2))
+            let likelihoods = {};
+            let totalLik = 0;
+            SETTINGS.forEach(s => {
+                likelihoods[s] = Math.exp(-scores[s] / 2);
+                totalLik += likelihoods[s];
+            });
+            let html = '<b>設定期待度:</b><br>';
+            SETTINGS.forEach(s => {
+                const prob = (likelihoods[s] / totalLik * 100).toFixed(1);
+                html += `設定${s}: ${prob}%${s == Math.max(...SETTINGS.map(s => likelihoods[s] / totalLik)) ? ' (最高)' : ''}<br>`;
+            });
+            html += '<br><b>初当たり実測:</b> ' + (games / (data.bonus || 1)).toFixed(1) + '<br><br>';
+            html += '<table><tr><th>設定</th><th>χ²スコア</th><th>初当たり理論</th></tr>';
+            SETTINGS.forEach(s => {
+                const cls = likelihoods[s] === Math.max(...Object.values(likelihoods)) ? ' class="high"' : '';
+                html += '<tr' + cls + '><td>' + s + '</td><td>' + scores[s].toFixed(2) + '</td><td>1/' + PROBS['bonus'][s].toFixed(1) + '</td></tr>';
+            });
+            html += '</table>';
+            html += '<br>※チェB・確B多めで高設定寄り！';
+            resultDiv.innerHTML = html;
+        }
+        
+        function judgeMode(data) {
+            const historyStr = data.history;
+            const modeDiv = document.getElementById('modeResult');
+            if (!historyStr) {
+                modeDiv.innerHTML = 'ボーナス履歴を入力してね (例: 150,32,32,200)';
+                return;
+            }
+            const hits = historyStr.split(',').map(g => parseInt(g.trim())).filter(g => !isNaN(g));
+            if (hits.length < 1) {
+                modeDiv.innerHTML = '有効なG数を入力してね';
+                return;
+            }
+            
+            // 簡易モード推定 (ベイズ風確率計算)
+            let probs = { A: 1/3, B: 1/3, Chance: 1/3 }; // 事前: リセット時近似
+            let currentMode = 'Unknown';
+            let chain = 0;
+            let prevHit = 0;
+            let isResetChance = false;
+            let transitions = [];
+            
+            hits.forEach((hit, idx) => {
+                const diff = hit - prevHit;
+                prevHit = hit;
+                
+                if (idx === 0) { // 最初の当たり
+                    if (diff <= 200) {
+                        probs.Chance += 0.5; // チャンス濃厚
+                        isResetChance = true;
+                    } else if (diff > 999) {
+                        probs.A += 0.3; // 有利天井?
+                    }
+                    normalize(probs);
+                    currentMode = diff <= 200 ? 'チャンス?' : '通常A/B?';
+                } else {
+                    if (diff <= 32) {
+                        chain++;
+                        if (chain >= 5) currentMode = '超ドキドキ?';
+                        else if (chain >= 3) currentMode = 'ドキドキ?';
+                        else currentMode = '天国';
+                    } else {
+                        chain = 0;
+                        if (diff <= 200) currentMode = '引き戻し/金ドキ?';
+                        else currentMode = '通常A/B';
+                        // 移行推定
+                        let trans = '';
+                        if (currentMode.includes('天国')) {
+                            probs.Heaven = (probs.Heaven || 0) + MODE_TRANS.loopHeaven;
+                        } else if (prevMode === 'チャンス') {
+                            probs.B = 0.5; probs.Heaven = 0.5;
+                            trans = 'チャンス → B or 天国';
+                        } else if (prevMode === 'A') {
+                            probs.Heaven = MODE_TRANS.fromA.Heaven;
+                            probs.B = MODE_TRANS.fromA.B;
+                            trans = 'A → 天国低, B低';
+                        } else if (prevMode === 'B') {
+                            probs.Heaven = MODE_TRANS.fromB.Heaven;
+                            trans = 'B → 天国高';
+                        }
+                        transitions.push(trans);
+                    }
+                }
+                prevMode = currentMode.split('?')[0];
+            });
+            
+            normalize(probs);
+            let html = '<b>モード推定:</b><br>';
+            html += 'リセットチャンス当選: ' + (isResetChance ? 'Yes (約40%でチャンススタート)' : 'No') + '<br>';
+            html += '最初の当たりG: ' + hits[0] + ' (チャンスなら200G以内)<br>';
+            html += '現在の滞在モード推定: ' + currentMode + '<br>';
+            html += 'モード確率:<br>';
+            Object.keys(probs).forEach(m => html += `${m}: ${(probs[m] * 100).toFixed(1)}%<br>`);
+            html += '<br>移行履歴:<br>' + transitions.filter(t => t).join('<br>');
+            html += '<br>※連チャン多めでドキドキ/超ドキ寄り。偶数設定でB/チャンス優遇?';
+            modeDiv.innerHTML = html;
+        }
+        
+        function normalize(probs) {
+            let total = Object.values(probs).reduce((a, b) => a + b, 0);
+            Object.keys(probs).forEach(k => probs[k] /= total);
+        }
+        
+        function clearData() {
+            if (currentTai) {
+                saveData(currentTai, {games: 0, bb: 0, reg: 0, cherry_b: 0, kakutei_b: 0, bonus: 0, history: ''});
+                switchTai(currentTai);
+            }
+        }
+        
+        function deleteAll() {
+            if (confirm('全データを削除しますか？')) {
+                localStorage.removeItem('okidoki_data');
+                currentTai = '';
+                document.getElementById('taiNo').value = '';
+                updateTaiList();
+                judgeSetting({games: 0});
+                judgeMode({history: ''});
+            }
+        }
+        
+        // PWAサービスワーカー登録
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('sw.js')
+                .then(() => console.log('Service Worker Registered'))
+                .catch(err => console.log('Service Worker Error:', err));
+        }
+        
+        // 初期ロード
+        updateTaiList();
+    </script>
+</body>
+</html>
